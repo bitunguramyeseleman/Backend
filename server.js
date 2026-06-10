@@ -11,17 +11,13 @@ app.use(cors());
 
 const port = process.env.PORT || 4000;
 
-
 app.post("/login", (req, res) => {
     const { Username, Password } = req.body;
 
     const sql = "SELECT * FROM Users WHERE Username = ?";
 
     con.query(sql, [Username], async (err, result) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ message: err.message });
-        }
+        if (err) return res.status(500).json({ message: "Database error" });
 
         if (result.length === 0) {
             return res.status(404).json({ message: "User not found" });
@@ -47,12 +43,10 @@ app.post("/login", (req, res) => {
             });
 
         } catch (error) {
-            console.error(error);
             res.status(500).json({ message: error.message });
         }
     });
 });
-
 
 app.post("/users", async (req, res) => {
     try {
@@ -61,15 +55,13 @@ app.post("/users", async (req, res) => {
         const hashedPassword = await bcrypt.hash(Password, 10);
 
         const sql = `
-            INSERT INTO Users (FullName, Email, Username, Password)
+            INSERT INTO Users
+            (FullName, Email, Username, Password)
             VALUES (?, ?, ?, ?)
         `;
 
         con.query(sql, [FullName, Email, Username, hashedPassword], (err, result) => {
-            if (err) {
-                console.error(err);
-                return res.status(500).json(err);
-            }
+            if (err) return res.status(500).json(err);
 
             res.status(201).json({
                 message: "User Added Successfully",
@@ -78,34 +70,24 @@ app.post("/users", async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: error.message });
     }
 });
-
 app.post("/forgot-password", (req, res) => {
     const { Email } = req.body;
 
-    if (!Email) {
-        return res.status(400).json({ message: "Email is required" });
-    }
-
-    const cleanEmail = Email.trim();
-
     const sql = "SELECT * FROM Users WHERE Email = ?";
 
-    con.query(sql, [cleanEmail], (err, result) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ message: err.message });
-        }
+    con.query(sql, [Email], (err, result) => {
+        if (err) return res.status(500).json({ message: "Database error" });
 
         if (result.length === 0) {
             return res.status(404).json({ message: "Email not found" });
         }
 
         const token = crypto.randomBytes(32).toString("hex");
-        const expiry = Date.now() + 3600000;
+
+        const expiry = Date.now() + 3600000; // 1 hour
 
         const updateSql = `
             UPDATE Users 
@@ -113,11 +95,8 @@ app.post("/forgot-password", (req, res) => {
             WHERE Email = ?
         `;
 
-        con.query(updateSql, [token, expiry, cleanEmail], (err2) => {
-            if (err2) {
-                console.error(err2);
-                return res.status(500).json({ message: err2.message });
-            }
+        con.query(updateSql, [token, expiry, Email], (err2) => {
+            if (err2) return res.status(500).json(err2);
 
             const resetLink = `http://localhost:5173/reset-password/${token}`;
 
@@ -128,6 +107,7 @@ app.post("/forgot-password", (req, res) => {
         });
     });
 });
+
 app.post("/reset-password/:token", async (req, res) => {
     const { token } = req.params;
     const { Password } = req.body;
@@ -138,10 +118,7 @@ app.post("/reset-password/:token", async (req, res) => {
     `;
 
     con.query(sql, [token], async (err, result) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ message: err.message });
-        }
+        if (err) return res.status(500).json({ message: "Database error" });
 
         if (result.length === 0) {
             return res.status(400).json({ message: "Invalid token" });
@@ -164,10 +141,7 @@ app.post("/reset-password/:token", async (req, res) => {
         `;
 
         con.query(updateSql, [hashedPassword, user.UserID], (err2) => {
-            if (err2) {
-                console.error(err2);
-                return res.status(500).json(err2);
-            }
+            if (err2) return res.status(500).json(err2);
 
             res.json({
                 message: "Password reset successful"
@@ -175,8 +149,8 @@ app.post("/reset-password/:token", async (req, res) => {
         });
     });
 });
-
-
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
+
+//my name is seleman im going to build web application
